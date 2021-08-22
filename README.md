@@ -1,5 +1,7 @@
 # rtsp_fastapi
 
+Stream video from a RTSP to a web browser
+
 [Setup]
 
 1 - install the dependencies in requirements.txt
