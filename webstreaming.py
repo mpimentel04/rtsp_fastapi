@@ -21,51 +21,18 @@ count_keep_alive = 0
 width = 1280
 height = 720
 
-url_rtsp = 'rtsp://admin:smartcam@192.168.0.172/profile5/media.smp'
-
-def run_ffmpeg():
-    global width
-    global height
-
-    get_entries = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
-                   '-of', 'csv=s=x:p=0', url_rtsp]
-    s = subprocess.Popen(get_entries, stdout=subprocess.PIPE)
-    probe_str = s.communicate()[0]  # Reading content of p0.stdout (output of FFprobe) as string
-    s.wait()
-    width, height = probe_str.decode('ascii').rstrip().split('x')
-
-    width = int(width)
-    height = int(height)
-
-    command = [
-        'ffmpeg',
-        '-i', url_rtsp,
-        '-video_size', f'{680}x{480}',
-        '-pix_fmt', 'bgr24',  # opencv requires bgr24 pixel format
-        '-vcodec', 'rawvideo',
-        '-an', '-sn',  # disable audio processing
-        '-f', 'image2pipe',
-        '-',  # output to go to stdout
-    ]
-    return subprocess.Popen(command, stdout=subprocess.PIPE, bufsize=10 ** 8)
-
+url_rtsp = 'rtsp://admin:admin123@192.168.0.150/'
 
 def start_stream(url_rtsp, manager):
     global width
     global height
 
-    # vs = VideoStream(url_rtsp).start()
-    ffmpeg_process = run_ffmpeg()
+    vs = VideoStream(url_rtsp).start()
     while True:
         time.sleep(0.2)
-        raw_image = ffmpeg_process.stdout.read(width*height*3)
-        if raw_image == b'':
-            raise RuntimeError("Empty pipe")
 
-        # frame = vs.read()
-        frame = np.frombuffer(raw_image, dtype='uint8')
-        # frame = imutils.resize(frame, width=680)
-        frame = frame.reshape((height, width, 3))  # height, width, channels
+        frame = vs.read()
+        frame = imutils.resize(frame, width=680)
         output_frame = frame.copy()
 
         if output_frame is None:
@@ -101,7 +68,7 @@ def manager_keep_alive(p):
 
 
 @app.get("/")
-def video_feed():
+async def video_feed():
     return StreamingResponse(streamer(), media_type="multipart/x-mixed-replace;boundary=frame")
 
 
@@ -112,7 +79,7 @@ def keep_alive():
     count_keep_alive = 100
     if not manager:
         manager = Queue()
-        p = Process(target=start_stream, args=('rtsp://admin:smartcam@192.168.0.172/profile5/media.smp', manager,))
+        p = Process(target=start_stream, args=(url_rtsp, manager,))
         p.start()
         threading.Thread(target=manager_keep_alive, args=(p,)).start()
 
