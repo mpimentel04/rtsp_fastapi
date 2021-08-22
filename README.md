@@ -2,6 +2,8 @@
 
 Stream video from a RTSP to a web browser
 
+I'm using multiprocessing to avoid memory leak when finished the  image stream.
+
 [Setup]
 
 1 - Install the dependencies in requirements.txt
